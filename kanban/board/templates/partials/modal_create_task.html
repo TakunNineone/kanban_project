@@ -1,0 +1,65 @@
+<div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" x-cloak>
+    <!-- Подложка фонового клика -->
+    <div class="fixed inset-0 bg-black/50" @click="openModal = false"></div>
+
+    <!-- Контент окна без click.outside -->
+    <div class="relative z-10 bg-white rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <h3 class="font-bold text-lg text-gray-800">Новая задача</h3>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Название</label>
+            <input type="text" x-model="newTask.name" placeholder="Введите название..." class="w-full border rounded-lg p-2 text-sm border-gray-300">
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Описание</label>
+            <textarea x-model="newTask.description" placeholder="Описание задачи..." class="w-full border rounded-lg p-2 text-sm border-gray-300" rows="3"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Дедлайн</label>
+                <input type="date" x-model="newTask.deadline" class="w-full border rounded-lg p-2 text-sm border-gray-300">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Приоритет</label>
+                <select x-model="newTask.priority" class="w-full border rounded-lg p-2 text-sm border-gray-300">
+                    <option value="1">🟢 Низкий</option>
+                    <option value="2">🟡 Средний</option>
+                    <option value="3">🟠 Высокий</option>
+                    <option value="4">🔴 Критический</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Ответственный исполнитель</label>
+            <select x-model="newTask.assigned_to" class="w-full border rounded-lg p-2 text-sm border-gray-300">
+                <option value="">Не назначен</option>
+                <template x-for="user in users" :key="user.id">
+                    <option :value="user.id" x-text="user.username"></option>
+                </template>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Соисполнители</label>
+            <select x-model="newTask.co_executors" multiple class="w-full border rounded-lg p-1 text-sm border-gray-300 h-16">
+                <template x-for="user in users" :key="user.id">
+                    <option :value="user.id" x-text="user.username"></option>
+                </template>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Прикрепить файлы</label>
+            <input type="file" multiple @change="newTask.files = $event.target.files" class="w-full text-xs text-gray-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t">
+            <button type="button" @click="openModal = false" class="px-4 py-2 border rounded-lg text-sm font-semibold">Отмена</button>
+            <button type="button" @click="addTask()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700">Создать</button>
+        </div>
+    </div>
+</div>

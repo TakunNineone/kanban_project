@@ -1,0 +1,40 @@
+<div x-show="showArchiveModal" class="fixed inset-0 z-50 overflow-hidden" x-cloak>
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+         @click="showArchiveModal = false"></div>
+
+    <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col p-6 overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    📦 Архив задач
+                </h3>
+                <button @click="showArchiveModal = false" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✖</button>
+            </div>
+
+            <div class="space-y-3 flex-1 overflow-y-auto pr-1">
+                <template x-for="t in archivedTasks" :key="t.uuid">
+                    <div class="p-3 bg-gray-50 border rounded-xl text-sm flex justify-between items-start gap-2 shadow-sm">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-[11px] font-bold text-gray-400" x-text="t.formatted_id"></span>
+                                <div class="font-bold text-gray-800" x-text="t.name"></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">Причина: <span x-text="t.archive_reason || 'Архивировано'"></span></div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">Архивировал: <span x-text="t.archived_by_name || 'Система'"></span></div>
+                        </div>
+
+                        <button @click="restoreTask(t.uuid)"
+                                class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold px-2 py-1.5 rounded-lg border border-blue-200 shrink-0 transition"
+                                title="Вернуть на доску">
+                            ↺ Вернуть
+                        </button>
+                    </div>
+                </template>
+
+                <div x-show="archivedTasks.length === 0" class="text-center py-10 text-gray-400 text-sm">
+                    В архиве пока нет задач
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

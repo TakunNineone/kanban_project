@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    Канбан-доска
+{% endblock %}
+
+{% block content %}
+<style>
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .kanban-shell {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+    }
+
+    .kanban-header {
+        flex-shrink: 0;
+    }
+
+    .kanban-main {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .kanban-settings {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .kanban-board-wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .kanban-filters {
+        flex-shrink: 0;
+    }
+
+    .kanban-columns {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        align-items: stretch;
+    }
+
+    .kanban-column {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+    .kanban-column-head {
+        flex-shrink: 0;
+    }
+
+    .kanban-column-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #e5e7eb;
+    }
+
+    .kanban-column-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .kanban-column-body::-webkit-scrollbar-track {
+        background: #e5e7eb;
+        border-radius: 999px;
+        margin: 6px 2px;
+    }
+
+    .kanban-column-body::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 999px;
+        border: 2px solid #e5e7eb;
+    }
+
+    .kanban-column-body::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    .kanban-column--archive .kanban-column-body {
+        scrollbar-color: #a78bfa #ede9fe;
+    }
+
+    .kanban-column--archive .kanban-column-body::-webkit-scrollbar-track {
+        background: #ede9fe;
+    }
+
+    .kanban-column--archive .kanban-column-body::-webkit-scrollbar-thumb {
+        background: #a78bfa;
+        border-color: #ede9fe;
+    }
+
+    .kanban-column--archive .kanban-column-body::-webkit-scrollbar-thumb:hover {
+        background: #7c3aed;
+    }
+
+    @media (max-width: 1023px) {
+        .kanban-columns {
+            overflow-y: auto;
+            overflow-x: hidden;
+            align-content: start;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .kanban-column {
+            height: 70vh;
+            max-height: 70vh;
+            min-height: 18rem;
+        }
+    }
+</style>
+<body class="antialiased sans-serif bg-gray-200"
+      x-data="board({{ request.user.id }}, {{ request.user.is_superuser|yesno:'true,false' }})"
+      x-init="initBoard()"
+      @keydown.window.escape="closeTopModal()"
+      x-cloak>
+
+    <div class="kanban-shell border-t-8" :class="`border-${colorSelected.value}-700`">
+            <!-- ХЕДЕР -->
+            <div class="kanban-header bg-cover bg-center bg-no-repeat transition-all shadow-md"
+                 :class="`bg-${colorSelected.value}-900`"
+                 :style="`background-image: url(${bannerImage})`">
+                <div class="container mx-auto px-4 py-4">
+                    <div class="flex justify-between items-center">
+                        <div class="text-white font-bold text-xl flex items-center gap-2">
+                            <i class="uil uil-dashboard"></i>
+                            <span x-text="currentGroupObj?.name || 'Канбан'"></span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+
+
+                            <button @click="showNotifications = !showNotifications"
+                                    class="relative px-3 py-2 bg-gray-800/80 hover:bg-gray-800 rounded-lg text-white transition">
+                                🔔
+                                <span x-show="notifications.some(n => !n.is_read)"
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-bold"
+                                      x-text="notifications.filter(n => !n.is_read).length"></span>
+                            </button>
+
+                            <a @click.prevent="openSettings()" href="#"
+                               class="rounded-lg px-3 py-2 text-sm font-medium text-white bg-gray-800/80 hover:bg-gray-800 transition">
+                                <i class="uil uil-setting"></i>
+                            </a>
+
+                            <a href="{% url 'board:boards' %}"
+                               class="rounded-lg px-3 py-2 text-sm font-medium text-white bg-red-700/80 hover:bg-red-700 transition">
+                                <i class="uil uil-sign-out-alt"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ГЛАВНЫЙ КОНТЕНТ -->
+            <div class="kanban-main container mx-auto px-4 py-4">
+                {% include 'settings.html' %}
+
+                <div class="kanban-board-wrap" x-show="showSettingsPage == false" x-transition>
+                    <!-- ПАНЕЛЬ ФИЛЬТРОВ И КНОПКА СБРОСА -->
+                    <div class="kanban-filters bg-white rounded-xl shadow-lg p-4 mb-4 border border-gray-100">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Доска</label>
+                                <select x-model="selectedGroup"
+                                        class="w-full rounded-lg border-gray-300 text-xs py-2 px-2 bg-gray-50 border">
+                                    <template x-for="g in groups" :key="g.uuid">
+                                        <option :value="g.uuid" x-text="g.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Исполнитель</label>
+                                <select x-model="selectedUserFilter"
+                                        class="w-full rounded-lg border-gray-300 text-xs py-2 px-2 bg-gray-50 border">
+                                    <option value="">Все</option>
+                                    <option value="null">Не назначен</option>
+                                    <template x-for="user in users" :key="user.id">
+                                        <option :value="user.id" x-text="user.username"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Приоритет</label>
+                                <select x-model="priorityFilter"
+                                        class="w-full rounded-lg border-gray-300 text-xs py-2 px-2 bg-gray-50 border">
+                                    <option value="">Все</option>
+                                    <option value="1">🟢 Низкий</option>
+                                    <option value="2">🟡 Средний</option>
+                                    <option value="3">🟠 Высокий</option>
+                                    <option value="4">🔴 Критический</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Дедлайн</label>
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-gray-400 font-bold w-4">от</span>
+                                        <input type="date" x-model="deadlineFrom"
+                                               class="w-full rounded-lg border-gray-300 text-xs py-1 px-1.5 bg-gray-50 border">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-gray-400 font-bold w-4">до</span>
+                                        <input type="date" x-model="deadlineTo"
+                                               class="w-full rounded-lg border-gray-300 text-xs py-1 px-1.5 bg-gray-50 border">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Дата создания</label>
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-gray-400 font-bold w-4">от</span>
+                                        <input type="date" x-model="createdFrom"
+                                               class="w-full rounded-lg border-gray-300 text-xs py-1 px-1.5 bg-gray-50 border">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-gray-400 font-bold w-4">до</span>
+                                        <input type="date" x-model="createdTo"
+                                               class="w-full rounded-lg border-gray-300 text-xs py-1 px-1.5 bg-gray-50 border">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Поиск</label>
+                                <input type="text" x-model="searchText" placeholder="Поиск..."
+                                       class="w-full rounded-lg border-gray-300 text-xs py-2 px-2 bg-gray-50 border">
+                            </div>
+
+                            <div class="flex items-end">
+                                <button type="button"
+                                        @click="toggleArchiveColumn()"
+                                        class="w-full text-xs font-bold py-2 px-2 rounded-lg border transition flex items-center justify-center gap-1"
+                                        :class="showArchiveColumn ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'">
+                                    📦 Колонка "Архив"
+                                </button>
+                            </div>
+
+                            <div class="flex items-end">
+                                <button x-show="hasActiveFilters"
+                                        x-transition
+                                        @click="clearFilters()"
+                                        class="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition">
+                                    🧹 Сбросить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- КАНБАН-ДОСКА -->
+                    <form id="task-form">{% csrf_token %}</form>
+                    <div class="kanban-columns grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all"
+                         :class="showArchiveColumn ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+
+                        <!-- ОСНОВНЫЕ КОЛОНКИ СТАТУСОВ -->
+                        <template x-for="board in boards" :key="board.id">
+                            <div class="kanban-column w-full bg-gray-100 rounded-xl shadow">
+                                <div class="kanban-column-head p-3 bg-gray-100 rounded-t-xl flex justify-between items-center border-b">
+                                    <div class="flex items-center gap-2 font-bold text-gray-700">
+                                        <span x-text="board.title"></span>
+                                        <span class="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full"
+                                              x-text="getDoneBoardCount(board.id)"></span>
+                                    </div>
+                                    <button type="button" @click="showModal(board)"
+                                            class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                                        + Добавить
+                                    </button>
+                                </div>
+
+                                <div @dragover="onDragOver(event)"
+                                     @drop="onDrop(event, board.id)"
+                                     @dragenter="onDragEnter(event)"
+                                     @dragleave="onDragLeave(event)"
+                                     class="kanban-column-body p-3 space-y-3">
+
+                                    <template x-for="t in filteredTasks(board.id)" :key="t.uuid">
+                                        <!-- КАРТОЧКА ЗАДАЧИ: getCardDeadlineClass задает bg-red-100 для просроченных/горящих -->
+                                        <div :id="t.uuid" draggable="true" @click="openTask(t)"
+                                             @dragstart="onDragStart(event, t.uuid)"
+                                             class="rounded-xl shadow hover:shadow-lg transition p-3 cursor-pointer border"
+                                             :class="getCardDeadlineClass(t)"
+                                             :style="getPriorityBorderStyle(t.priority)">
+
+                                            <div class="flex justify-between items-start gap-2">
+                                                <h4 class="font-bold text-sm leading-snug break-words w-full"
+                                                    x-text="t.name"></h4>
+                                            </div>
+
+                                            <p x-show="t.description_short"
+                                               class="text-xs mt-2 opacity-85 break-words whitespace-normal leading-relaxed w-full"
+                                               x-text="t.description_short"></p>
+
+                                            <div x-show="t.checklist_progress"
+                                                 class="mt-2 text-xs font-semibold bg-black/5 px-2 py-1 rounded inline-block">
+                                                ☑️ <span x-text="t.checklist_progress?.completed"></span>/<span
+                                                    x-text="t.checklist_progress?.total"></span>
+                                            </div>
+
+                                            <div class="flex flex-wrap items-center gap-1.5 mt-3 text-xs opacity-85 max-w-full overflow-hidden">
+                                                <span class="font-medium bg-black/5 px-1.5 py-0.5 rounded"
+                                                      title="Дата создания">
+                                                    ✨ <span x-text="formatShortDate(t.date)"></span>
+                                                </span>
+
+                                                <span x-show="t.assigned_to_name"
+                                                      class="font-medium bg-black/10 px-1.5 py-0.5 rounded truncate max-w-[110px]"
+                                                      title="Исполнитель">
+                                                    👤 <span x-text="t.assigned_to_name"></span>
+                                                </span>
+
+                                                <template x-for="co in t.co_executors_details" :key="co.id">
+                                                    <span class="bg-black/10 px-1.5 py-0.5 rounded text-[10px] truncate max-w-[100px]"
+                                                          title="Соисполнитель">
+                                                        👥 <span x-text="co.username"></span>
+                                                    </span>
+                                                </template>
+
+                                                <!-- ДЕДЛАЙН: Увеличена дата (text-sm) + Ярко-красная плашка (bg-red-600) если просрочена -->
+                                                <span x-show="t.deadline"
+                                                      class="text-sm px-1.5 py-0.5 rounded transition"
+                                                      :class="isDeadlineOverdue(t) ? 'bg-red-600 text-white font-bold shadow-sm' : 'font-semibold'">
+                                                    📆 <span x-text="t.deadline"></span>
+                                                </span>
+
+                                                <span x-show="t.boardName === 'done' && t.completed_at"
+                                                      class="font-bold text-green-700">
+                                                    ✅ <span x-text="formatDate(t.completed_at)"></span>
+                                                </span>
+                                            </div>
+
+                                            <div class="flex justify-between items-center mt-3 pt-2 border-t border-black/10 text-xs opacity-75">
+                                                <div class="flex gap-3 items-center">
+                                                    <span x-show="t.comments_count">💬 <span
+                                                            x-text="t.comments_count"></span></span>
+                                                    <span x-show="t.attachments_count">📌 <span
+                                                            x-text="t.attachments_count"></span></span>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-mono text-[11px] font-bold text-gray-500"
+                                                          x-text="t.formatted_id"
+                                                          title="ID задачи"></span>
+                                                    <button type="button" @click.stop="archiveOrRemoveTask(t)"
+                                                            class="text-red-600 hover:text-red-800 font-bold text-sm"
+                                                            title="В архив">
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ОТДЕЛЬНАЯ КОЛОНКА "АРХИВ" -->
+                        <div x-show="showArchiveColumn"
+                             x-transition
+                             class="kanban-column kanban-column--archive w-full bg-purple-50 border border-purple-200 rounded-xl shadow">
+
+                            <div class="kanban-column-head p-3 bg-purple-100 rounded-t-xl flex justify-between items-center border-b border-purple-200">
+                                <div class="flex items-center gap-2 font-bold text-purple-900">
+                                    <span>📦 Архив</span>
+                                    <span class="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full"
+                                          x-text="filteredArchivedTasks().length"></span>
+                                </div>
+                                <button type="button" @click="toggleArchiveColumn()"
+                                        class="text-xs font-bold text-purple-700 hover:text-purple-900">
+                                    ✖
+                                </button>
+                            </div>
+
+                            <div @dragover="onDragOver(event)"
+                                 @drop="onDrop(event, 'archive')"
+                                 @dragenter="onDragEnter(event)"
+                                 @dragleave="onDragLeave(event)"
+                                 class="kanban-column-body p-3 space-y-3">
+
+                                <template x-for="t in visibleArchivedTasks" :key="t.uuid">
+                                    <div @click="openTask(t)"
+                                         class="rounded-xl shadow hover:shadow-lg transition p-3 cursor-pointer border bg-white border-purple-200">
+
+                                        <div class="flex justify-between items-start gap-2">
+                                            <h4 class="font-bold text-sm leading-snug break-words w-full text-gray-800" x-text="t.name"></h4>
+                                        </div>
+
+                                        <p x-show="t.description_short"
+                                           class="text-xs mt-2 opacity-85 break-words whitespace-normal leading-relaxed w-full text-gray-600"
+                                           x-text="t.description_short"></p>
+
+                                        <p x-show="t.archive_reason"
+                                           class="text-[11px] mt-2 italic text-purple-700 bg-purple-100/50 p-1.5 rounded">
+                                            ℹ️ <span x-text="t.archive_reason"></span>
+                                        </p>
+
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-3 text-xs opacity-85 max-w-full overflow-hidden">
+                                            <span class="font-medium bg-gray-100 px-1.5 py-0.5 rounded" title="Дата создания">
+                                                ✨ <span x-text="formatShortDate(t.date)"></span>
+                                            </span>
+
+                                            <span x-show="t.assigned_to_name" class="font-medium bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[110px]" title="Исполнитель">
+                                                👤 <span x-text="t.assigned_to_name"></span>
+                                            </span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center mt-3 pt-2 border-t border-purple-100 text-xs">
+                                            <span class="font-mono text-[11px] font-bold text-gray-500" x-text="t.formatted_id" title="ID задачи"></span>
+
+                                            <button type="button"
+                                                    @click.stop="restoreTask(t.uuid)"
+                                                    class="text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded transition"
+                                                    title="Восстановить">
+                                                ↩️ Восстановить
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- КНОПКА "ПОКАЗАТЬ БОЛЬШЕ" ДЛЯ АРХИВА -->
+                                <div x-show="filteredArchivedTasks().length > visibleArchivedTasks.length" class="pt-2 text-center">
+                                    <button type="button"
+                                            @click="loadMoreArchived()"
+                                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2 px-3 rounded-lg transition shadow-xs">
+                                        ➕ Показать еще (осталось <span x-text="filteredArchivedTasks().length - visibleArchivedTasks.length"></span>)
+                                    </button>
+                                </div>
+
+                                <div x-show="filteredArchivedTasks().length === 0" class="text-center py-8 text-gray-400 text-xs">
+                                    В архиве нет задач
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- МОДАЛЬНЫЕ ОКНА И ШТОРКИ -->
+    {% include 'partials/modal_task_details.html' %}
+    {% include 'partials/modal_archive.html' %}
+    {% include 'partials/modal_notifications.html' %}
+    {% include 'partials/modal_create_task.html' %}
+
+    <!-- ИЗОЛИРОВАННЫЙ ПРОСМОТР ИЗОБРАЖЕНИЙ (z-index 9999) -->
+    <div x-show="imagePreviewModal"
+         class="fixed inset-0 flex items-center justify-center p-4 bg-black/80 cursor-pointer"
+         style="z-index: 9999;"
+         @click.stop="imagePreviewModal = false"
+         x-cloak>
+        <div class="relative max-w-full max-h-full flex items-center justify-center" @click.stop>
+            <img :src="previewImageUrl" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl">
+            <button type="button"
+                    @click.stop="imagePreviewModal = false"
+                    class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-gray-300 transition">
+                ✖
+            </button>
+        </div>
+    </div>
+
+    <script src="{% static 'js/kanban.js' %}"></script>
+    </body>
+{% endblock %}

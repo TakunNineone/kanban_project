@@ -1,0 +1,53 @@
+<div x-show="showNotifications" class="fixed inset-0 z-50 overflow-hidden" x-cloak>
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+         @click="showNotifications = false"></div>
+
+    <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col p-6 overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    🔔 Уведомления
+                </h3>
+                <div class="flex items-center gap-3">
+                    <button class="text-xs text-blue-600 hover:underline font-semibold"
+                            type="button"
+                            @click="readAllNotifications()">
+                        ✓ Прочитать все
+                    </button>
+                    <button type="button" @click="showNotifications = false" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✖</button>
+                </div>
+            </div>
+
+            <div class="space-y-2 flex-1 overflow-y-auto pr-1">
+                <template x-for="item in notifications" :key="item.id">
+                    <div class="p-3 rounded-xl border text-sm transition"
+                         :class="item.is_read ? 'bg-gray-50 border-gray-100' : 'bg-blue-50 border-blue-200 shadow-sm'">
+                        <div class="font-medium text-gray-800" x-text="item.action"></div>
+
+                        <!-- ПОКАЗЫВАЕМ НАЗВАНИЕ ДОСКИ -->
+                        <div class="text-xs text-gray-500 font-medium mt-1">
+                            📌 Доска: <span class="font-bold text-gray-700" x-text="item.group_name"></span>
+                        </div>
+
+                        <div class="text-xs text-blue-600 font-semibold mt-0.5">
+                            📋 Задача: <span x-text="item.task_name"></span>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-2 pt-1 border-t border-gray-100 text-[10px] text-gray-400">
+                            <span x-text="formatDate(item.created_at)"></span>
+                            <button type="button"
+                                    class="text-xs text-blue-600 hover:underline font-bold"
+                                    @click="openNotification(item)">
+                                Открыть &rarr;
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="notifications.length === 0" class="text-center py-10 text-gray-400 text-sm">
+                    Уведомлений нет
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

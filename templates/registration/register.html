@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-md">
+    <div class="bg-white shadow rounded-lg p-8 border border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Канбан — регистрация</h2>
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 p-3 rounded bg-red-100 text-red-800">
+                {{ form.non_field_errors.0 }}
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-1" for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <p class="text-gray-500 text-xs mt-1">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium mt-2">
+                Создать аккаунт
+            </button>
+        </form>
+
+        <p class="text-center text-gray-600 mt-6">
+            Уже есть аккаунт?
+            <a href="{% url 'login' %}" class="text-blue-600 hover:text-blue-800 font-medium">Войти</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

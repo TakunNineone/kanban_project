@@ -1,0 +1,12 @@
+*.pyc
+__pycache__/
+db.sqlite3
+staticfiles/
+media/
+kanban/comments/
+kanban/tasks/
+.venv/
+venv/
+.env
+.idea/
+.vscode/
