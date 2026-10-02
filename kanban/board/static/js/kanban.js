@@ -1,10 +1,12 @@
 function board(currentUserId, isSuperuser = false) {
     const csrftoken = document.querySelector('#task-form > input').value;
+
+    const basePath = '/user/kosmenkoas/proxy/2020';
+
     const api_client = axios.create({
-        baseURL: '/api',
+        baseURL: `${basePath}/api`,
         headers: {'X-CSRFToken': csrftoken},
     });
-
     return {
         currentUserId: currentUserId,
         isSuperuser: isSuperuser,

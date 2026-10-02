@@ -6,7 +6,19 @@ SECRET_KEY = 'django-insecure-kanban-dev-key-change-in-production'
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'jupyterhub.mlcluster.ru',
+]
+
+FORCE_SCRIPT_NAME = "/user/kosmenkoas/proxy/2020"
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "board:boards"
+LOGOUT_REDIRECT_URL = "login"
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -64,17 +76,16 @@ TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = '/static/'
+STATIC_URL = f"{FORCE_SCRIPT_NAME}/static/"
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = '/media/'
+MEDIA_URL = f"{FORCE_SCRIPT_NAME}/media/"
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/kanban/'
-LOGOUT_REDIRECT_URL = '/login/'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
